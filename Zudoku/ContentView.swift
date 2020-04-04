@@ -29,17 +29,20 @@ let fontSize = CGFloat(48)
 
 //var backgrounds = [Color(UIColor(red: 255/255, green: 105.0/255, blue: 180.0/255, alpha: 1.0)),Color.purple,Color.yellow,Color.red,Color(UIColor(red: 0/255, green: 255/255, blue: 0/255, alpha: 1.0)), Color(UIColor(red: 102/255, green: 178.0/255, blue: 178.0/255, alpha: 1.0))]
 var backgrounds = [Color.red, Color.blue, Color.orange, Color.green, Color.purple,Color.yellow,Color(UIColor(red: 255/255, green: 105.0/255, blue: 180.0/255, alpha: 1.0))]
+//var backgrounds = [Color.red, Color.blue, Color.orange, Color.green]
 struct ContentView: View {
   @State private var rect:[CGRect] = []
   @State private var textText = [String](repeating: "", count: 100)
   @State private var textColors = [Color](repeating: Color.clear, count: 100)
   @State private var textID:Int? = 0
   @State private var textValue:[String] = ["1","2","3","4","5","6","7"]
+//  @State private var textValue:[String] = ["1","2","3","4"]
   @State private var timerText = 0
   @State private var startStop = false
   @State private var showingAlert = false
   @State private var showingReset = false
   @State private var showingWin = false
+  @State private var poke:String = ""
   
   let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
   
@@ -76,6 +79,7 @@ struct ContentView: View {
                       self.textColors[loop] = Color.clear
                     }
                     self.timerText = 0
+                    self.startStop = false
             }, secondaryButton: .cancel())
         }
     
@@ -87,11 +91,12 @@ struct ContentView: View {
           .frame(width: minWidith, height: minHeight, alignment: .center)
           .background(backgrounds[column])
           .cornerRadius(minHeight/2)
-
+          .onTapGesture {
+            self.poke = self.textValue[column]
+          }
         .onDrag {
             return NSItemProvider(object: self.textValue[column] as NSItemProviderWriting) }
         }
-        
       }
 
     Spacer().onReceive(winPublisher, perform: { (_) in
@@ -99,50 +104,84 @@ struct ContentView: View {
     }).alert(isPresented: $showingWin) {
           Alert(title: Text("Success, You did it"), message: Text("Well Done"), dismissButton: .default(Text("Shake To Try Again!")))
         }
-    VStack(alignment: .center, spacing: 8) {
-            ForEach((0 ..< self.textValue.count).reversed(), id: \.self) { row in
-                HStack(alignment: .center, spacing: 8) {
-                    ForEach((0 ..< self.textValue.count).reversed(), id: \.self) { column in
-                       return VStack {
-                        if self.textColors[fCalc(c: column, r: row, x: self.textValue.count)] == Color.clear {
-                           Text(self.textText[fCalc(c: column, r: row, x: self.textValue.count)])
-                          .font(Fonts.futuraCondensedMedium(size:fontSize - 12))
-                          .frame(width: minWidith, height: minHeight, alignment: .center)
-                          .background(InsideView(rect: self.$rect))
-                          .onDrop(of: ["public.utf8-plain-text"], delegate: dropDelegate)
-//                          .onAppear {
-//                            self.textText[fCalc(c: column, r: row, x: self.textValue.count)] = String(fCalc(c: column, r: row, x: self.textValue.count))
-//                          }
-                        } else {
-                          Text(self.textText[fCalc(c: column, r: row, x: self.textValue.count)])
-                          .onTapGesture {
-                            self.textText[fCalc(c: column, r: row, x: self.textValue.count)] = ""
-                            self.textColors[fCalc(c: column, r: row, x: self.textValue.count)] = Color.clear
+      VStack(alignment: .center, spacing: 8) {
+        ForEach((0 ..< self.textValue.count).reversed(), id: \.self) { row in
+          HStack(alignment: .center, spacing: 8) {
+            ForEach((0 ..< self.textValue.count).reversed(), id: \.self) { column in
+              return VStack {
+                if self.textColors[fCalc(c: column, r: row, x: self.textValue.count)] == Color.clear {
+                  Text(self.textText[fCalc(c: column, r: row, x: self.textValue.count)])
+                    .font(Fonts.futuraCondensedMedium(size:fontSize - 12))
+                    .frame(width: minWidith, height: minHeight, alignment: .center)
+                    .background(InsideView(rect: self.$rect))
+                    .onDrop(of: ["public.utf8-plain-text"], delegate: dropDelegate)
+                    .onTapGesture {
+                      if self.poke != "" {
+                        self.textText[fCalc(c: column, r: row, x: self.textValue.count)] = self.poke
+                        self.textColors[fCalc(c: column, r: row, x: self.textValue.count)] = backgrounds[Int(self.poke)! - 1]
+                        self.poke = ""
+                        self.startStop = true
+                        runOnce = false
+                        if boardFull(textColors: self.textColors, figures: self.rect.count) {
+                          if confirmColours(textColors: self.textColors, figures: self.rect.count) {
+                              timePublisher.send()
                           }
-                          .font(Fonts.futuraCondensedMedium(size:fontSize))
-                          .frame(width: minWidith, height: minHeight, alignment: .center)
-                          .background(self.textColors[fCalc(c: column, r: row, x: self.textValue.count)])
-                          .onDrop(of: ["public.utf8-plain-text"], delegate: dropDelegate)
-                          .onDrag {
-                            self.textColors[fCalc(c: column, r: row, x: self.textValue.count)] = Color.clear
-                            let copyCell = self.textText[fCalc(c: column, r: row, x: self.textValue.count)]
-                            self.textText[fCalc(c: column, r: row, x: self.textValue.count)] = ""
-                            return NSItemProvider(object: copyCell as NSItemProviderWriting) }
                         }
                       }
-                    }
+                  }
+                  //                          .onAppear {
+                  //                            self.textText[fCalc(c: column, r: row, x: self.textValue.count)] = String(fCalc(c: column, r: row, x: self.textValue.count))
+                  //                          }
+                } else {
+                  Text(self.textText[fCalc(c: column, r: row, x: self.textValue.count)])
+                    .onTapGesture {
+                      if self.poke != "" {
+                        self.textText[fCalc(c: column, r: row, x: self.textValue.count)] = self.poke
+                        self.textColors[fCalc(c: column, r: row, x: self.textValue.count)] = backgrounds[Int(self.poke)! - 1]
+                        self.poke = ""
+                        if boardFull(textColors: self.textColors, figures: self.rect.count) {
+                          if confirmColours(textColors: self.textColors, figures: self.rect.count) {
+                              timePublisher.send()
+                          }
+                        }
+                      } else {
+                        self.textText[fCalc(c: column, r: row, x: self.textValue.count)] = ""
+                        self.textColors[fCalc(c: column, r: row, x: self.textValue.count)] = Color.clear
+                      }
+                  }
+                  .font(Fonts.futuraCondensedMedium(size:fontSize))
+                  .frame(width: minWidith, height: minHeight, alignment: .center)
+                  .background(self.textColors[fCalc(c: column, r: row, x: self.textValue.count)])
+                  .onDrop(of: ["public.utf8-plain-text"], delegate: dropDelegate)
+                  .onDrag {
+                    self.textColors[fCalc(c: column, r: row, x: self.textValue.count)] = Color.clear
+                    let copyCell = self.textText[fCalc(c: column, r: row, x: self.textValue.count)]
+                    self.textText[fCalc(c: column, r: row, x: self.textValue.count)] = ""
+                    return NSItemProvider(object: copyCell as NSItemProviderWriting) }
                 }
+              }
             }
+          }
         }
+      }
 
     Spacer()
     }
   }
 }
 
+func boardFull(textColors:[Color],figures:Int) -> Bool {
+  for loop in 0 ..< figures {
+      if textColors[loop] == Color.clear {
+        return false
+      }
+    }
+  return true
+}
 
-func confirmColours(textColors:[Color],figures:Int) -> Bool? {
-  print("figures",figures)
+
+func confirmColours(textColors:[Color],figures:Int) -> Bool {
+//  print("figures",figures)
   for loop in 0 ..< figures {
       if textColors[loop] == Color.clear {
         return false
@@ -151,35 +190,69 @@ func confirmColours(textColors:[Color],figures:Int) -> Bool? {
 
   var tfigures = figures - 1
   let rfigure = Int(Double(figures).squareRoot())
-  print("rfig ",rfigure)
+//  print("rfig ",rfigure)
   for _ in 0..<rfigure {
   var superSet = Set<String>()
   for loop in stride(from: tfigures, to: tfigures - rfigure, by: -1) {
     superSet.insert(textColors[loop].description)
-    print("loop ",loop)
+//    print("loop ",loop)
   }
   tfigures = tfigures - rfigure
-  print("superSet ",superSet,superSet.count)
+//  print("superSet ",superSet,superSet.count)
+    if superSet.count != rfigure {
+      alertPublisher.send()
+      return false
+    }
+  }
+
+  tfigures = figures - 1
+  for _ in 0..<rfigure {
+    var superSet = Set<String>()
+    for loop in stride(from: tfigures, to: -1, by: -rfigure) {
+    superSet.insert(textColors[loop].description)
+//    print("loop2 ",loop)
+  }
+  tfigures = tfigures - 1
+//  print("superSet ",superSet,superSet.count)
     if superSet.count != rfigure {
       alertPublisher.send()
       return false
     }
   }
   
-  tfigures = figures - 1
-  for _ in 0..<rfigure {
-    var superSet = Set<String>()
-    for loop in stride(from: tfigures, to: -1, by: -rfigure) {
-    superSet.insert(textColors[loop].description)
-    print("loop2 ",loop)
-  }
-  tfigures = tfigures - 1
-  print("superSet ",superSet,superSet.count)
-    if superSet.count != rfigure {
-      alertPublisher.send()
-      return false
-    }
-  }
+  // right diagonally left to right
+  
+//  var qfigure = (rfigure * rfigure) - 1
+//  print("qfigures ",qfigure,rfigure)
+//  var superSet = Set<String>()
+//  for loop in stride(from: qfigure, to: -1, by: -(rfigure+1)) {
+//    superSet.insert(textColors[loop].description)
+//    print("loop ",loop)
+//  }
+//  tfigures = tfigures - 1
+//  print("superSet ",superSet,superSet.count)
+//  if superSet.count != rfigure {
+//    alertPublisher.send()
+//    return false
+//  }
+    
+    // left to right diagonally
+    
+    
+//  qfigure = (rfigure * rfigure)  - (rfigure - 1)
+//  print("tfigures ",qfigure,rfigure)
+//  var superSet2 = Set<String>()
+//  for loop in stride(from: tfigures, to: 2, by: -(rfigure+1)) {
+//    superSet2.insert(textColors[loop].description)
+//    print("loop2 ",loop)
+//  }
+//  tfigures = tfigures - 1
+//  print("superSet ",superSet2,superSet.count)
+//  if superSet2.count != rfigure {
+//    alertPublisher.send()
+//    return false
+//  }
+  
   
   winPublisher.send()
   return true
@@ -371,13 +444,11 @@ struct TheDropDelegate: DropDelegate {
                            self.textText[self.textID!] = text
                            // we need to subtract 1 cause array starts at zero
                            self.textColors[self.textID!] = backgrounds[Int(text)! - 1]
-                           guard let _ = confirmColours(textColors: self.textColors, figures: self.rect.count) else {
-                              alertPublisher.send()
-                              return
-                           }
-                          if confirmColours(textColors: self.textColors, figures: self.rect.count)! {
+                           if boardFull(textColors: self.textColors, figures: self.rect.count) {
+                            if confirmColours(textColors: self.textColors, figures: self.rect.count) {
                               timePublisher.send()
                             }
+                          }
                         }
                     }
                 }
@@ -389,7 +460,6 @@ struct TheDropDelegate: DropDelegate {
         }
 
         func dropUpdated(info: DropInfo) -> DropProposal? {
-            print("drop Updated",rect)
             let item = info.hasItemsConforming(to: ["public.utf8-plain-text"])
             let dp = DropProposal(operation: .move)
             self.startStop = true
@@ -412,7 +482,7 @@ struct ContentView_Previews: PreviewProvider {
 extension UIWindow {
   open override func motionEnded(_ motion: UIEvent.EventSubtype, with event: UIEvent?) {
     if motion == .motionShake {
-      print("Device shaken")
+//      print("Device shaken")
       resetPublisher.send()
     }
   }
