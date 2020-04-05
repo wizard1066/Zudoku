@@ -16,6 +16,17 @@ let timePublisher = PassthroughSubject<Void, Never>()
 let resetPublisher = PassthroughSubject<Void, Never>()
 let winPublisher = PassthroughSubject<Void, Never>()
 
+class SliderData: ObservableObject {
+  let didChange = PassthroughSubject<SliderData,Never>()
+
+  @Published var sliderValue: Double = 0 {
+    didSet {
+      print("sliderValue \(sliderValue)")
+      didChange.send(self)
+    }
+  }
+}
+
 
 struct Fonts {
     static func futuraCondensedMedium(size:CGFloat) -> Font{
@@ -44,6 +55,10 @@ struct ContentView: View {
   @State private var showingWin = false
   @State private var poke:String = ""
   
+  @State private var sliderDB = [(Int?,Int?)](repeating: (nil,nil), count: 100)
+  @ObservedObject var sliderData:SliderData
+ 
+  
   let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
   
   var body: some View {
@@ -71,6 +86,21 @@ struct ContentView: View {
       self.showingReset = true
     })
     
+    Spacer()
+    
+   
+//    Slider(value: $celsius, in: 0...Double(self.textColors.count), step: 1) { changed in
+//      print("changed ",self.celsius)
+//      let fixed = cellsUsed(textColors: self.textColors, figures: self.rect.count)
+//      if self.celsius > fixed {
+//        self.celsius = fixed
+//      }
+//      }.padding()
+//    Text("celsius \(celsius)")
+
+
+    Slider(value: $sliderData.sliderValue, in: 0...Double(self.textColors.count))
+  
     
     Spacer().alert(isPresented:$showingReset) {
             Alert(title: Text("Reset Sure?"), message: Text("Zudoku Reset?"), primaryButton: .destructive(Text("Reset")) {
@@ -110,6 +140,7 @@ struct ContentView: View {
             ForEach((0 ..< self.textValue.count).reversed(), id: \.self) { column in
               return VStack {
                 if self.textColors[fCalc(c: column, r: row, x: self.textValue.count)] == Color.clear {
+//                  cellCell(column: column, row: row, dropDelegate: dropDelegate, textValue: textValue, textText: textText, textColors: textC, rect: rect)
                   Text(self.textText[fCalc(c: column, r: row, x: self.textValue.count)])
                     .font(Fonts.futuraCondensedMedium(size:fontSize - 12))
                     .frame(width: minWidith, height: minHeight, alignment: .center)
@@ -117,6 +148,8 @@ struct ContentView: View {
                     .onDrop(of: ["public.utf8-plain-text"], delegate: dropDelegate)
                     .onTapGesture {
                       if self.poke != "" {
+                        self.sliderDB[Int(self.sliderData.sliderValue)] = (column,row)
+                        self.sliderData.sliderValue = self.sliderData.sliderValue + 1
                         self.textText[fCalc(c: column, r: row, x: self.textValue.count)] = self.poke
                         self.textColors[fCalc(c: column, r: row, x: self.textValue.count)] = backgrounds[Int(self.poke)! - 1]
                         self.poke = ""
@@ -136,6 +169,8 @@ struct ContentView: View {
                   Text(self.textText[fCalc(c: column, r: row, x: self.textValue.count)])
                     .onTapGesture {
                       if self.poke != "" {
+                        self.sliderDB[Int(self.sliderData.sliderValue)] = (column,row)
+                        self.sliderData.sliderValue = self.sliderData.sliderValue + 1
                         self.textText[fCalc(c: column, r: row, x: self.textValue.count)] = self.poke
                         self.textColors[fCalc(c: column, r: row, x: self.textValue.count)] = backgrounds[Int(self.poke)! - 1]
                         self.poke = ""
@@ -145,6 +180,8 @@ struct ContentView: View {
                           }
                         }
                       } else {
+                        self.sliderData.sliderValue = self.sliderData.sliderValue + 1
+                        self.sliderDB[Int(self.sliderData.sliderValue)] = (nil,nil)
                         self.textText[fCalc(c: column, r: row, x: self.textValue.count)] = ""
                         self.textColors[fCalc(c: column, r: row, x: self.textValue.count)] = Color.clear
                       }
@@ -166,9 +203,59 @@ struct ContentView: View {
       }
 
     Spacer()
+    
     }
   }
 }
+
+struct cellCell: View {
+  @Binding var column: Int
+  @Binding var row: Int
+//  @Binding var dropDelegate: DropDelegate
+  @Binding var textValue:[String]
+  @Binding var textText:[String]
+//  @Binding var textColors:[Color]
+//  @Binding var rect:[CGRect]
+  
+  var body: some View {
+    return Text(self.textText[fCalc(c: column, r: row, x: self.textValue.count)])
+                    .font(Fonts.futuraCondensedMedium(size:fontSize - 12))
+                    .frame(width: minWidith, height: minHeight, alignment: .center)
+//                    .background(InsideView(rect: self.$rect))
+//                    .onDrop(of: ["public.utf8-plain-text"], delegate: dropDelegate)
+//                    .onDrag {
+//                    self.textColors[fCalc(c: self.column, r: self.row, x: self.textValue.count)] = Color.clear
+//                      let copyCell = self.textText[fCalc(c: self.column, r: self.row, x: self.textValue.count)]
+//                    self.textText[fCalc(c: self.column, r: self.row, x: self.textValue.count)] = ""
+//                    return NSItemProvider(object: copyCell as NSItemProviderWriting)
+                    
+//    }
+  }
+}
+
+func cellsUsed(textColors:[Color],figures:Int) -> Double {
+  var counting:Double = 0
+    
+  for loop in 0 ..< figures {
+      if textColors[loop] != Color.clear {
+        counting += 1
+      }
+    }
+  return counting
+}
+
+func cellsFree(textColors:[Color],figures:Int) -> Double {
+  var counting:Double = 0
+  
+  for loop in 0 ..< figures {
+      if textColors[loop] == Color.clear {
+        counting += 1
+      }
+    }
+  return counting
+}
+
+
 
 func boardFull(textColors:[Color],figures:Int) -> Bool {
   for loop in 0 ..< figures {
@@ -342,7 +429,6 @@ struct InsideView: View {
   }
 }
 
-
 //struct InsideView: View {
 //  @Binding var rect: [CGRect]
 //  @State var toggle = true
@@ -475,7 +561,7 @@ struct TheDropDelegate: DropDelegate {
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        ContentView()
+      ContentView(sliderData: SliderData.init())
     }
 }
 
