@@ -26,6 +26,7 @@ struct stepperSteps {
   var stepIndex: Int?
   var stepText: String?
   var stepColor: Color?
+  var stepRect: CGRect?
 }
 
 struct Fonts {
@@ -65,7 +66,7 @@ struct ContentView: View {
   
   var body: some View {
 
-    let dropDelegate = TheDropDelegate(textID: $textID, textText: $textText, rect: $rect, textColors: $textColors, startStop: $startStop, stepperInst: stepperInst)
+    let dropDelegate = TheDropDelegate(textID: $textID, textText: $textText, textColors: $textColors, startStop: $startStop, stepperInst: stepperInst)
     return VStack {
     Spacer()
 
@@ -93,7 +94,8 @@ struct ContentView: View {
     HStack(alignment: .center) {
             Spacer().padding()
             Stepper("Cell", onIncrement: {
-              if self.stepperInst.stepperValue < cellsUsedV(stepperInst: self.stepperInst, figures: self.rect.count) {
+              if self.stepperInst.stepperValue < cellsUsedV(stepperInst: self.stepperInst, figures: self.stepperInst.stepperDB.count) {
+//              if self.stepperInst.stepperValue < cellsUsedV(stepperInst: self.stepperInst, figures: self.rect.count) {
 //                let (id, figure, color) = self.sliderDB[Int(self.sliderValue)]
 //                if id != nil {
 //                  self.textText[id!] = figure!
@@ -167,11 +169,12 @@ struct ContentView: View {
             ForEach((0 ..< self.textValue.count).reversed(), id: \.self) { column in
               return VStack {
                 if self.textColors[fCalc(c: column, r: row, x: self.textValue.count)] == Color.clear {
-//                  cellCell(column: column, row: row, dropDelegate: dropDelegate, textValue: textValue, textText: textText, textColors: textC, rect: rect)
+//                  Text(stepperInst.stepperDB[fCalc(c: column, r: row, x: self.textValue.count)].stepText)
                   Text(self.textText[fCalc(c: column, r: row, x: self.textValue.count)])
                     .font(Fonts.futuraCondensedMedium(size:fontSize - 12))
                     .frame(width: minWidith, height: minHeight, alignment: .center)
-                    .background(InsideView(rect: self.$rect))
+//                    .background(InsideView(rect: self.$rect))
+                    .background(InsideViewV(stepperInst: self.stepperInst))
                     .onDrop(of: ["public.utf8-plain-text"], delegate: dropDelegate)
                     .onTapGesture {
                       if self.poke != "" {
@@ -188,8 +191,8 @@ struct ContentView: View {
                         self.poke = ""
                         self.startStop = true
                         runOnce = false
-                        if boardFull(textColors: self.textColors, figures: self.rect.count) {
-                          if confirmColours(textColors: self.textColors, figures: self.rect.count) {
+                        if boardFull(textColors: self.textColors, figures: rectIndex) {
+                          if confirmColours(textColors: self.textColors, figures: rectIndex) {
                               timePublisher.send()
                           }
                         }
@@ -215,8 +218,8 @@ struct ContentView: View {
                         
                         self.poke = ""
                         
-                        if boardFull(textColors: self.textColors, figures: self.rect.count) {
-                          if confirmColours(textColors: self.textColors, figures: self.rect.count) {
+                        if boardFull(textColors: self.textColors, figures: rectIndex) {
+                          if confirmColours(textColors: self.textColors, figures: rectIndex) {
                               timePublisher.send()
                           }
                         }
@@ -249,30 +252,6 @@ struct ContentView: View {
   }
 }
 
-struct cellCell: View {
-  @Binding var column: Int
-  @Binding var row: Int
-//  @Binding var dropDelegate: DropDelegate
-  @Binding var textValue:[String]
-  @Binding var textText:[String]
-//  @Binding var textColors:[Color]
-//  @Binding var rect:[CGRect]
-  
-  var body: some View {
-    return Text(self.textText[fCalc(c: column, r: row, x: self.textValue.count)])
-                    .font(Fonts.futuraCondensedMedium(size:fontSize - 12))
-                    .frame(width: minWidith, height: minHeight, alignment: .center)
-//                    .background(InsideView(rect: self.$rect))
-//                    .onDrop(of: ["public.utf8-plain-text"], delegate: dropDelegate)
-//                    .onDrag {
-//                    self.textColors[fCalc(c: self.column, r: self.row, x: self.textValue.count)] = Color.clear
-//                      let copyCell = self.textText[fCalc(c: self.column, r: self.row, x: self.textValue.count)]
-//                    self.textText[fCalc(c: self.column, r: self.row, x: self.textValue.count)] = ""
-//                    return NSItemProvider(object: copyCell as NSItemProviderWriting)
-                    
-//    }
-  }
-}
 
 func cellHistory(column:Int, row:Int, tVcount:Int, poke:String, sliderValue:inout Int, sliderDB:inout [(Int?,String?,Color?)], textText:inout [String], textColors:inout [Color]) {
   sliderDB[Int(sliderValue)] = ((fCalc(c: column, r: row, x: tVcount)),poke,backgrounds[Int(poke)! - 1])
@@ -283,7 +262,7 @@ func cellHistory(column:Int, row:Int, tVcount:Int, poke:String, sliderValue:inou
 }
 
 func cellHistoryV(column:Int, row:Int, tVcount:Int, poke:String, stepperInst:StepperData, textText:inout [String], textColors:inout [Color]) {
-  print("fcalc ",fCalc(c: column, r: row, x: tVcount))
+  
   let newRec = stepperSteps(stepIndex: (fCalc(c: column, r: row, x: tVcount)), stepText: poke, stepColor: backgrounds[Int(poke)! - 1])
   if textColors[fCalc(c: column, r: row, x: tVcount)] != Color.clear {
     let index = stepperInst.stepperDB.firstIndex { $0.stepIndex == fCalc(c: column, r: row, x: tVcount) }
@@ -490,7 +469,7 @@ struct InsideView: View {
   var body: some View {
     
       return VStack {
-        if toggle {
+//        if toggle {
          GeometryReader { geometry in
           Rectangle()
             .fill(Color.yellow)
@@ -502,9 +481,32 @@ struct InsideView: View {
               }
           }
         }
-      }
+//      }
     }
   }
+}
+
+var rectIndex = 0
+
+struct InsideViewV: View {
+  @ObservedObject var stepperInst:StepperData
+  var body: some View {
+    return VStack {
+//        if toggle {
+         GeometryReader { geometry in
+          Rectangle()
+            .fill(Color.yellow)
+            .frame(width: minWidith, height: minHeight, alignment: .center)
+            .opacity(0.5)
+            .onAppear {
+              if runOnce {
+                self.stepperInst.stepperDB[rectIndex].stepRect = geometry.frame(in: .global)
+                rectIndex += 1
+              }
+          }
+        }
+  }
+}
 }
 
 //struct InsideView: View {
@@ -571,7 +573,7 @@ struct InsideView: View {
 struct TheDropDelegate: DropDelegate {
   @Binding var textID:Int?
   @Binding var textText:[String]
-  @Binding var rect:[CGRect]
+//  @Binding var rect:[CGRect]
   @Binding var textColors:[Color]
   @Binding var startStop:Bool
   @ObservedObject var stepperInst:StepperData
@@ -588,17 +590,28 @@ struct TheDropDelegate: DropDelegate {
             print("drop entered")
         }
 
-        func dropTarget(info: DropInfo) -> Int? {
-          for squareno in 0..<rect.count {
-            if rect[squareno].contains(info.location) {
-              return squareno
+//        func dropTarget(info: DropInfo) -> Int? {
+//          for squareno in 0..<rect.count {
+//            if rect[squareno].contains(info.location) {
+//              return squareno
+//            }
+//          }
+//          return nil
+//        }
+        
+        func dropTargetV(info: DropInfo) -> Int? {
+          for squareno in 0..<rectIndex {
+            if stepperInst.stepperDB[squareno].stepRect != nil {
+              if stepperInst.stepperDB[squareno].stepRect!.contains(info.location) {
+                return squareno
+              }
             }
           }
           return nil
         }
 
         func performDrop(info: DropInfo) -> Bool {
-            textID = dropTarget(info: info)
+            textID = dropTargetV(info: info)
             if textID == nil {
               return false
             }
@@ -620,8 +633,8 @@ struct TheDropDelegate: DropDelegate {
                           self.stepperInst.stepperDB[self.stepperInst.stepperValue] = newRec
                           self.stepperInst.stepperValue = self.stepperInst.stepperValue + 1
                           
-                           if boardFull(textColors: self.textColors, figures: self.rect.count) {
-                            if confirmColours(textColors: self.textColors, figures: self.rect.count) {
+                           if boardFull(textColors: self.textColors, figures: rectIndex) {
+                            if confirmColours(textColors: self.textColors, figures: rectIndex) {
                               timePublisher.send()
                             }
                           }
