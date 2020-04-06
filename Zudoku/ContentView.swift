@@ -17,16 +17,16 @@ let resetPublisher = PassthroughSubject<Void, Never>()
 let winPublisher = PassthroughSubject<Void, Never>()
 let cellPublisher = PassthroughSubject<Void, Never>()
 
-class SliderData: ObservableObject {
-  let didChange = PassthroughSubject<SliderData,Never>()
-
-  @Published var sliderValue: Int = 0 {
-    didSet {
-      didChange.send(self)
-    }
-  }
+final class StepperData: ObservableObject {
+  @Published var stepperValue: Int = 0
+  @Published var stepperDB = [stepperSteps](repeating: stepperSteps(stepIndex: nil,stepText: nil,stepColor: nil), count: 256)
 }
 
+struct stepperSteps {
+  var stepIndex: Int?
+  var stepText: String?
+  var stepColor: Color?
+}
 
 struct Fonts {
     static func futuraCondensedMedium(size:CGFloat) -> Font{
@@ -54,17 +54,18 @@ struct ContentView: View {
   @State private var showingReset = false
   @State private var showingWin = false
   @State private var poke:String = ""
-  @State private var peek:Bool = false
+  
   
   @State private var sliderDB = [(Int?,String?,Color?)](repeating: (nil,nil,nil), count: 100)
-  @ObservedObject var sliderData:SliderData
- 
+  @State private var sliderValue: Int = 0
+  
+  @ObservedObject var stepperInst:StepperData
   
   let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
   
   var body: some View {
 
-    let dropDelegate = TheDropDelegate(textID: $textID, textText: $textText, rect: $rect, textColors: $textColors, startStop: $startStop, sliderData: sliderData, sliderDB: $sliderDB)
+    let dropDelegate = TheDropDelegate(textID: $textID, textText: $textText, rect: $rect, textColors: $textColors, startStop: $startStop, stepperInst: stepperInst)
     return VStack {
     Spacer()
 
@@ -85,42 +86,45 @@ struct ContentView: View {
       self.showingAlert = true
     }.onReceive(resetPublisher, perform: { (_) in
       self.showingReset = true
-    }).onReceive(cellPublisher) { ( index ) in
-      if self.peek {
-        let (id, figure, color) = self.sliderDB[Int(self.sliderData.sliderValue)]
-        if id != nil {
-        if self.textColors[id!] == Color.clear {
-          self.textText[id!] = figure!
-          self.textColors[id!] = color!
-        } else {
-          self.textText[id!] = ""
-          self.textColors[id!] = Color.clear
-        }
-      }
-      }
-    }
+    })
     
     
     Spacer()
     HStack(alignment: .center) {
             Spacer().padding()
             Stepper("Cell", onIncrement: {
-              if self.sliderData.sliderValue < cellsUsed(sliderDB: self.sliderDB, figures: self.rect.count) {
-                let (id, figure, color) = self.sliderDB[Int(self.sliderData.sliderValue)]
-                if id != nil {
-                  self.textText[id!] = figure!
-                  self.textColors[id!] = color!
+              if self.stepperInst.stepperValue < cellsUsedV(stepperInst: self.stepperInst, figures: self.rect.count) {
+//                let (id, figure, color) = self.sliderDB[Int(self.sliderValue)]
+//                if id != nil {
+//                  self.textText[id!] = figure!
+//                  self.textColors[id!] = color!
+//                }
+//                self.sliderValue += 1
+                
+                let record = self.stepperInst.stepperDB[Int(self.stepperInst.stepperValue)]
+                if record.stepIndex != nil {
+                  self.textText[record.stepIndex!] = record.stepText!
+                  self.textColors[record.stepIndex!] = record.stepColor!
                 }
-                self.sliderData.sliderValue += 1
+                self.stepperInst.stepperValue += 1
               }
             }, onDecrement: {
-              if self.sliderData.sliderValue != 0 {
-                self.sliderData.sliderValue -= 1
-                let (id, figure, color) = self.sliderDB[Int(self.sliderData.sliderValue)]
-                if id != nil {
-                  self.textText[id!] = ""
-                  self.textColors[id!] = Color.clear
+//              if self.sliderValue != 0 {
+                if self.stepperInst.stepperValue != 0 {
+                self.stepperInst.stepperValue -= 1
+                
+                let record = self.stepperInst.stepperDB[Int(self.stepperInst.stepperValue)]
+                if record.stepIndex != nil {
+                  self.textText[record.stepIndex!] = ""
+                  self.textColors[record.stepIndex!] = Color.clear
                 }
+              
+//                self.sliderValue -= 1
+//                let (id, _, _) = self.sliderDB[Int(self.sliderValue)]
+//                if id != nil {
+//                  self.textText[id!] = ""
+//                  self.textColors[id!] = Color.clear
+//                }
                 }
             }).font(Fonts.futuraCondensedMedium(size: 20))
             Spacer().padding()
@@ -171,12 +175,17 @@ struct ContentView: View {
                     .onDrop(of: ["public.utf8-plain-text"], delegate: dropDelegate)
                     .onTapGesture {
                       if self.poke != "" {
-                        self.sliderDB[Int(self.sliderData.sliderValue)] = ((fCalc(c: column, r: row, x: self.textValue.count)),self.poke,backgrounds[Int(self.poke)! - 1])
-                        self.sliderData.sliderValue = self.sliderData.sliderValue + 1
-                        self.textText[fCalc(c: column, r: row, x: self.textValue.count)] = self.poke
-                        self.textColors[fCalc(c: column, r: row, x: self.textValue.count)] = backgrounds[Int(self.poke)! - 1]
+                      
+//                        self.sliderDB[Int(self.sliderValue)] = ((fCalc(c: column, r: row, x: self.textValue.count)),self.poke,backgrounds[Int(self.poke)! - 1])
+//                        self.sliderValue = self.sliderValue + 1
+//                        self.textText[fCalc(c: column, r: row, x: self.textValue.count)] = self.poke
+//                        self.textColors[fCalc(c: column, r: row, x: self.textValue.count)] = backgrounds[Int(self.poke)! - 1]
+//                        cellHistory(column: column, row: row, tVcount: self.textValue.count, poke: self.poke, sliderValue: &self.sliderValue, sliderDB: &self.sliderDB, textText: &self.textText, textColors: &self.textColors)
+                        cellHistoryV(column: column, row: row, tVcount: self.textValue.count, poke: self.poke, stepperInst: self.stepperInst, textText: &self.textText, textColors: &self.textColors)
+                        
+                        print("stepII ",self.stepperInst.stepperValue)
+                        
                         self.poke = ""
-                        self.peek = false
                         self.startStop = true
                         runOnce = false
                         if boardFull(textColors: self.textColors, figures: self.rect.count) {
@@ -186,19 +195,26 @@ struct ContentView: View {
                         }
                       }
                   }
-//                                            .onAppear {
-//                                              self.textText[fCalc(c: column, r: row, x: self.textValue.count)] = String(fCalc(c: column, r: row, x: self.textValue.count))
-//                                            }
+                                            .onAppear {
+                                              self.textText[fCalc(c: column, r: row, x: self.textValue.count)] = String(fCalc(c: column, r: row, x: self.textValue.count))
+                                            }
                 } else {
                   Text(self.textText[fCalc(c: column, r: row, x: self.textValue.count)])
                     .onTapGesture {
                       if self.poke != "" {
-                        self.sliderDB[Int(self.sliderData.sliderValue)] = ((fCalc(c: column, r: row, x: self.textValue.count)),self.poke,backgrounds[Int(self.poke)! - 1])
-                        self.sliderData.sliderValue = self.sliderData.sliderValue + 1
-                        self.textText[fCalc(c: column, r: row, x: self.textValue.count)] = self.poke
-                        self.textColors[fCalc(c: column, r: row, x: self.textValue.count)] = backgrounds[Int(self.poke)! - 1]
+                      
+//                        self.sliderDB[Int(self.sliderValue)] = ((fCalc(c: column, r: row, x: self.textValue.count)),self.poke,backgrounds[Int(self.poke)! - 1])
+//                        self.sliderValue = self.sliderValue + 1
+//                        self.textText[fCalc(c: column, r: row, x: self.textValue.count)] = self.poke
+//                        self.textColors[fCalc(c: column, r: row, x: self.textValue.count)] = backgrounds[Int(self.poke)! - 1]
+
+//                        cellHistory(column: column, row: row, tVcount: self.textValue.count, poke: self.poke, sliderValue: &self.sliderValue, sliderDB: &self.sliderDB, textText: &self.textText, textColors: &self.textColors)
+                        cellHistoryV(column: column, row: row, tVcount: self.textValue.count, poke: self.poke, stepperInst: self.stepperInst, textText: &self.textText, textColors: &self.textColors)
+                        
+                        print("stepIII ",self.stepperInst.stepperValue)
+                        
                         self.poke = ""
-                        self.peek = false
+                        
                         if boardFull(textColors: self.textColors, figures: self.rect.count) {
                           if confirmColours(textColors: self.textColors, figures: self.rect.count) {
                               timePublisher.send()
@@ -206,7 +222,7 @@ struct ContentView: View {
                         }
                       } else {
                         
-                        self.sliderDB[Int(self.sliderData.sliderValue)] = (nil,nil,nil)
+                        self.sliderDB[Int(self.sliderValue)] = (nil,nil,nil)
                         self.textText[fCalc(c: column, r: row, x: self.textValue.count)] = ""
                         self.textColors[fCalc(c: column, r: row, x: self.textValue.count)] = Color.clear
                       }
@@ -257,6 +273,42 @@ struct cellCell: View {
 //    }
   }
 }
+
+func cellHistory(column:Int, row:Int, tVcount:Int, poke:String, sliderValue:inout Int, sliderDB:inout [(Int?,String?,Color?)], textText:inout [String], textColors:inout [Color]) {
+  sliderDB[Int(sliderValue)] = ((fCalc(c: column, r: row, x: tVcount)),poke,backgrounds[Int(poke)! - 1])
+  sliderValue = sliderValue + 1
+  
+  textText[fCalc(c: column, r: row, x: tVcount)] = poke
+  textColors[fCalc(c: column, r: row, x: tVcount)] = backgrounds[Int(poke)! - 1]
+}
+
+func cellHistoryV(column:Int, row:Int, tVcount:Int, poke:String, stepperInst:StepperData, textText:inout [String], textColors:inout [Color]) {
+  print("fcalc ",fCalc(c: column, r: row, x: tVcount))
+  let newRec = stepperSteps(stepIndex: (fCalc(c: column, r: row, x: tVcount)), stepText: poke, stepColor: backgrounds[Int(poke)! - 1])
+  if textColors[fCalc(c: column, r: row, x: tVcount)] != Color.clear {
+    let index = stepperInst.stepperDB.firstIndex { $0.stepIndex == fCalc(c: column, r: row, x: tVcount) }
+    stepperInst.stepperDB[index!] = newRec
+  } else {
+    stepperInst.stepperDB[stepperInst.stepperValue] = newRec
+    stepperInst.stepperValue = stepperInst.stepperValue + 1
+  }
+  
+  textText[fCalc(c: column, r: row, x: tVcount)] = poke
+  textColors[fCalc(c: column, r: row, x: tVcount)] = backgrounds[Int(poke)! - 1]
+}
+
+func cellsUsedV(stepperInst:StepperData, figures:Int) -> Int {
+  var counting:Int = 0
+    
+  for loop in 0 ..< figures {
+      let link = stepperInst.stepperDB[loop]
+      if link.stepIndex != nil {
+        counting += 1
+      }
+    }
+  return counting
+}
+
 
 func cellsUsed(sliderDB:[(Int?,String?,Color?)],figures:Int) -> Int {
   var counting:Int = 0
@@ -522,8 +574,10 @@ struct TheDropDelegate: DropDelegate {
   @Binding var rect:[CGRect]
   @Binding var textColors:[Color]
   @Binding var startStop:Bool
-  @ObservedObject var sliderData:SliderData
-  @Binding var sliderDB:[(Int?,String?,Color?)]
+  @ObservedObject var stepperInst:StepperData
+//  @ObservedObject var sliderData:SliderData
+//  @Binding var sliderValue:Int
+//  @Binding var sliderDB:[(Int?,String?,Color?)]
 
 
   func validateDrop(info: DropInfo) -> Bool {
@@ -558,8 +612,13 @@ struct TheDropDelegate: DropDelegate {
                            self.textText[self.textID!] = text
                            // we need to subtract 1 cause array starts at zero
                            self.textColors[self.textID!] = backgrounds[Int(text)! - 1]
-                           self.sliderDB[Int(self.sliderData.sliderValue)] =  (self.textID,text,backgrounds[(Int(text)! - 1)])
-                           self.sliderData.sliderValue = self.sliderData.sliderValue + 1
+                           
+//                           self.sliderDB[Int(self.sliderValue)] =  (self.textID,text,backgrounds[(Int(text)! - 1)])
+//                           self.sliderValue = self.sliderValue + 1
+
+                          let newRec = stepperSteps(stepIndex: self.textID, stepText: text, stepColor: backgrounds[Int(text)! - 1])
+                          self.stepperInst.stepperDB[self.stepperInst.stepperValue] = newRec
+                          self.stepperInst.stepperValue = self.stepperInst.stepperValue + 1
                           
                            if boardFull(textColors: self.textColors, figures: self.rect.count) {
                             if confirmColours(textColors: self.textColors, figures: self.rect.count) {
@@ -591,8 +650,10 @@ struct TheDropDelegate: DropDelegate {
 }
 
 struct ContentView_Previews: PreviewProvider {
+    
     static var previews: some View {
-      ContentView(sliderData: SliderData.init())
+      ContentView(stepperInst: StepperData.init())
+//        ContentView()
     }
 }
 
