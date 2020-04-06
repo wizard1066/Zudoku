@@ -107,8 +107,10 @@ struct ContentView: View {
                 
                 let record = self.stepperInst.stepperDB[Int(self.stepperInst.stepperValue)]
                 if record.stepIndex != nil {
-                  self.textText[record.stepIndex!] = record.stepText!
-                  self.textColors[record.stepIndex!] = record.stepColor!
+                  self.stepperInst.stepperDB[record.stepIndex!].stepTText = record.stepText!
+                  self.stepperInst.stepperDB[record.stepIndex!].stepTColor = record.stepColor!
+//                  self.textText[record.stepIndex!] = record.stepText!
+//                  self.textColors[record.stepIndex!] = record.stepColor!
                 }
                 self.stepperInst.stepperValue += 1
               }
@@ -119,8 +121,10 @@ struct ContentView: View {
                 
                 let record = self.stepperInst.stepperDB[Int(self.stepperInst.stepperValue)]
                 if record.stepIndex != nil {
-                  self.textText[record.stepIndex!] = ""
-                  self.textColors[record.stepIndex!] = Color.clear
+                  self.stepperInst.stepperDB[record.stepIndex!].stepTText = ""
+                  self.stepperInst.stepperDB[record.stepIndex!].stepTColor = Color.clear
+//                  self.textText[record.stepIndex!] = ""
+//                  self.textColors[record.stepIndex!] = Color.clear
                 }
               
 //                self.sliderValue -= 1
@@ -136,8 +140,11 @@ struct ContentView: View {
     Spacer().alert(isPresented:$showingReset) {
             Alert(title: Text("Reset Sure?"), message: Text("Zudoku Reset?"), primaryButton: .destructive(Text("Reset")) {
                     for loop in 0 ..< self.textValue.count * self.textValue.count {
-                      self.textText[loop] = ""
-                      self.textColors[loop] = Color.clear
+                      self.stepperInst.stepperDB[loop].stepTColor = Color.clear
+                      self.stepperInst.stepperDB[loop].stepColor = Color.clear
+                      self.stepperInst.stepperDB[loop].stepTText = ""
+                      self.stepperInst.stepperDB[loop].stepText = ""
+                      self.stepperInst.stepperDB[loop].stepIndex = nil
                     }
                     self.timerText = 0
                     self.startStop = false
@@ -194,8 +201,8 @@ struct ContentView: View {
                         self.poke = ""
                         self.startStop = true
                         runOnce = false
-                        if boardFull(textColors: self.textColors, figures: rectIndex) {
-                          if confirmColours(textColors: self.textColors, figures: rectIndex) {
+                        if boardFullV(stepperInst: self.stepperInst, figures: rectIndex) {
+                          if confirmColoursV(stepperInst: self.stepperInst, figures: rectIndex) {
                               timePublisher.send()
                           }
                         }
@@ -222,8 +229,8 @@ struct ContentView: View {
                         
                         self.poke = ""
                         
-                        if boardFull(textColors: self.textColors, figures: rectIndex) {
-                          if confirmColours(textColors: self.textColors, figures: rectIndex) {
+                        if boardFullV(stepperInst: self.stepperInst, figures: rectIndex) {
+                          if confirmColoursV(stepperInst: self.stepperInst, figures: rectIndex) {
                               timePublisher.send()
                           }
                         }
@@ -274,17 +281,23 @@ func cellHistory(column:Int, row:Int, tVcount:Int, poke:String, sliderValue:inou
 
 func cellHistoryV(column:Int, row:Int, tVcount:Int, poke:String, stepperInst:StepperData, textText:inout [String], textColors:inout [Color]) {
   
-  let newRec = stepperSteps(stepIndex: (fCalc(c: column, r: row, x: tVcount)), stepText: poke, stepColor: backgrounds[Int(poke)! - 1])
+//  let newRec = stepperSteps(stepIndex: (fCalc(c: column, r: row, x: tVcount)), stepText: poke, stepColor: backgrounds[Int(poke)! - 1])
   if textColors[fCalc(c: column, r: row, x: tVcount)] != Color.clear {
     let index = stepperInst.stepperDB.firstIndex { $0.stepIndex == fCalc(c: column, r: row, x: tVcount) }
-    stepperInst.stepperDB[index!] = newRec
+    stepperInst.stepperDB[index!].stepText = poke
+    stepperInst.stepperDB[index!].stepColor = backgrounds[Int(poke)! - 1]
   } else {
-    stepperInst.stepperDB[stepperInst.stepperValue] = newRec
+    stepperInst.stepperDB[stepperInst.stepperValue].stepIndex = fCalc(c: column, r: row, x: tVcount)
+    stepperInst.stepperDB[stepperInst.stepperValue].stepText = poke
+    stepperInst.stepperDB[stepperInst.stepperValue].stepColor = backgrounds[Int(poke)! - 1]
     stepperInst.stepperValue = stepperInst.stepperValue + 1
   }
   
-  textText[fCalc(c: column, r: row, x: tVcount)] = poke
-  textColors[fCalc(c: column, r: row, x: tVcount)] = backgrounds[Int(poke)! - 1]
+  stepperInst.stepperDB[fCalc(c: column, r: row, x: tVcount)].stepTText = poke
+  stepperInst.stepperDB[fCalc(c: column, r: row, x: tVcount)].stepTColor = backgrounds[Int(poke)! - 1]
+  
+//  textText[fCalc(c: column, r: row, x: tVcount)] = poke
+//  textColors[fCalc(c: column, r: row, x: tVcount)] = backgrounds[Int(poke)! - 1]
 }
 
 func cellsUsedV(stepperInst:StepperData, figures:Int) -> Int {
@@ -331,6 +344,93 @@ func boardFull(textColors:[Color],figures:Int) -> Bool {
         return false
       }
     }
+  return true
+}
+
+func boardFullV(stepperInst:StepperData,figures:Int) -> Bool {
+  for loop in 0 ..< figures {
+      if stepperInst.stepperDB[loop].stepTColor == Color.clear {
+        return false
+      }
+    }
+  return true
+}
+
+func confirmColoursV(stepperInst:StepperData,figures:Int) -> Bool {
+//  print("figures",figures)
+  for loop in 0 ..< figures {
+      if stepperInst.stepperDB[loop].stepTColor == Color.clear {
+        return false
+      }
+    }
+
+  var tfigures = figures - 1
+  let rfigure = Int(Double(figures).squareRoot())
+//  print("rfig ",rfigure)
+  for _ in 0..<rfigure {
+  var superSet = Set<String>()
+  for loop in stride(from: tfigures, to: tfigures - rfigure, by: -1) {
+    superSet.insert(stepperInst.stepperDB[loop].stepTColor!.description)
+//    print("loop ",loop)
+  }
+  tfigures = tfigures - rfigure
+//  print("superSet ",superSet,superSet.count)
+    if superSet.count != rfigure {
+      alertPublisher.send()
+      return false
+    }
+  }
+
+  tfigures = figures - 1
+  for _ in 0..<rfigure {
+    var superSet = Set<String>()
+    for loop in stride(from: tfigures, to: -1, by: -rfigure) {
+    superSet.insert(stepperInst.stepperDB[loop].stepTColor!.description)
+//    print("loop2 ",loop)
+  }
+  tfigures = tfigures - 1
+//  print("superSet ",superSet,superSet.count)
+    if superSet.count != rfigure {
+      alertPublisher.send()
+      return false
+    }
+  }
+  
+  // right diagonally left to right
+  
+//  var qfigure = (rfigure * rfigure) - 1
+//  print("qfigures ",qfigure,rfigure)
+//  var superSet = Set<String>()
+//  for loop in stride(from: qfigure, to: -1, by: -(rfigure+1)) {
+//    superSet.insert(textColors[loop].description)
+//    print("loop ",loop)
+//  }
+//  tfigures = tfigures - 1
+//  print("superSet ",superSet,superSet.count)
+//  if superSet.count != rfigure {
+//    alertPublisher.send()
+//    return false
+//  }
+    
+    // left to right diagonally
+    
+    
+//  qfigure = (rfigure * rfigure)  - (rfigure - 1)
+//  print("tfigures ",qfigure,rfigure)
+//  var superSet2 = Set<String>()
+//  for loop in stride(from: tfigures, to: 2, by: -(rfigure+1)) {
+//    superSet2.insert(textColors[loop].description)
+//    print("loop2 ",loop)
+//  }
+//  tfigures = tfigures - 1
+//  print("superSet ",superSet2,superSet.count)
+//  if superSet2.count != rfigure {
+//    alertPublisher.send()
+//    return false
+//  }
+  
+  
+  winPublisher.send()
   return true
 }
 
@@ -655,8 +755,8 @@ struct TheDropDelegate: DropDelegate {
                           
                           self.stepperInst.stepperValue = self.stepperInst.stepperValue + 1
                           
-                           if boardFull(textColors: self.textColors, figures: rectIndex) {
-                            if confirmColours(textColors: self.textColors, figures: rectIndex) {
+                          if boardFullV(stepperInst: self.stepperInst, figures: rectIndex) {
+                            if confirmColoursV(stepperInst: self.stepperInst, figures: rectIndex) {
                               timePublisher.send()
                             }
                           }
